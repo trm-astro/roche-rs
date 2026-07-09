@@ -11,6 +11,7 @@ name: Build and publish Rust Python extension Package
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build-wheels:
