@@ -141,7 +141,7 @@ pub fn vstream_reg(q: f64, step: f64, n_points: usize, transform_type: i32) -> R
     while np < n_points {
 
         // Advance one step
-        stradv(q, &mut r, &mut v, r_next, RLOC, 1.0e-3);
+        stradv(q, &mut r, &mut v, r_next, RLOC, 1.0e-3)?;
         (tvx, tvy) = vel_transform(q, transform_type, r.x, r.y, v.x, v.y)?;
         vx_arr.push(tvx);
         vy_arr.push(tvy);
@@ -156,7 +156,7 @@ pub fn vstream_reg(q: f64, step: f64, n_points: usize, transform_type: i32) -> R
 
         // Loop over all radii wanted before next turning point
         while np < n_points && ((r_decreasing && r_next > r_end) || (!r_decreasing && r_next < r_end)) {
-            stradv(q, &mut r, &mut v, r_next, RLOC, 1.0e-3);
+            stradv(q, &mut r, &mut v, r_next, RLOC, 1.0e-3)?;
             (tvx, tvy) = vel_transform(q, transform_type, r.x, r.y, v.x, v.y)?;
             vx_arr.push(tvx);
             vy_arr.push(tvy);
