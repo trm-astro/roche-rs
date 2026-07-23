@@ -314,7 +314,7 @@ pub fn streamr(q: f64, rad: f64, n_points: usize) -> Result<(Vec<f64>, Vec<f64>)
     let mut rnext: f64;
     for i in 1..n_points {
         rnext = rl1 + (rmin - rl1) * (i as f64) / (n_points as f64 - 1.0);
-        stradv(q, &mut r, &mut v, rnext, 1.0e-6, 1.0e-4);
+        stradv(q, &mut r, &mut v, rnext, 1.0e-6, 1.0e-4)?;
         x_arr.push(r.x);
         y_arr.push(r.y);
     }
@@ -367,7 +367,7 @@ pub fn streamr_py(py: Python, q: f64, rad: f64, n_points: usize) -> PyResult<(Py
 ///
 /// * time step taken
 ///
-pub fn stradv(q: f64, r: &mut Vec3, v: &mut Vec3, rad: f64, acc: f64, smax: f64) -> f64 {
+pub fn stradv(q: f64, r: &mut Vec3, v: &mut Vec3, rad: f64, acc: f64, smax: f64) -> Result<f64, RocheError> {
     const TMAX: f64 = 10.0;
     let t_next: f64 = 1.0e-2;
 
@@ -408,7 +408,9 @@ pub fn stradv(q: f64, r: &mut Vec3, v: &mut Vec3, rad: f64, acc: f64, smax: f64)
         time += delta_t;
 
         if time > TMAX {
-            panic!("roche::stradv taken too long without crossing given radius.")
+            return Err(RocheError::ParameterError(
+                "roche::stradv taken too long without crossing given radius.".to_string(),
+            ));
         }
     }
 
@@ -446,7 +448,7 @@ pub fn stradv(q: f64, r: &mut Vec3, v: &mut Vec3, rad: f64, acc: f64, smax: f64)
         }
     }
 
-    time
+    Ok(time)
 }
 
 // wrapper for python library, avoiding mutable references
@@ -477,11 +479,11 @@ pub fn stradv_py(
     rad: f64,
     acc: f64,
     smax: f64,
-) -> (f64, Vec3, Vec3) {
+) -> Result<(f64, Vec3, Vec3), RocheError> {
     let mut r_mut = *r;
     let mut v_mut = *v;
-    let timestep = stradv(q, &mut r_mut, &mut v_mut, rad, acc, smax);
-    (timestep, r_mut, v_mut)
+    let timestep = stradv(q, &mut r_mut, &mut v_mut, rad, acc, smax)?;
+    Ok((timestep, r_mut, v_mut))
 }
 
 ///
@@ -528,7 +530,7 @@ pub fn rocacc(q: f64, r: &Vec3, v: &Vec3) -> (f64, f64, f64) {
 #[pyo3(signature = (q, rad, acc=1.0e-7, smax=1.0e-2))]
 pub fn brightspot_position(q: f64, rad: f64, acc: f64, smax: f64) -> Result<Vec3, RocheError> {
     let (mut r, mut v) = strinit(q)?;
-    let _ = stradv(q, &mut r, &mut v, rad, acc, smax);
+    stradv(q, &mut r, &mut v, rad, acc, smax)?;
 
     Ok(r)
 }
@@ -552,7 +554,7 @@ pub fn brightspot_position(q: f64, rad: f64, acc: f64, smax: f64) -> Result<Vec3
 #[pyo3(signature = (q, rad, acc=1.0e-7, smax=1.0e-2))]
 pub fn bspot(q: f64, rad: f64, acc: f64, smax: f64) -> Result<(Vec3, Vec3), RocheError> {
     let (mut r, mut v) = strinit(q)?;
-    let _ = stradv(q, &mut r, &mut v, rad, acc, smax);
+    stradv(q, &mut r, &mut v, rad, acc, smax)?;
 
     Ok((r, v))
 }
@@ -586,7 +588,7 @@ mod tests {
     fn strinit_stradv_test() -> Result<(), RocheError> {
         // Values from trm.roche.bspot
         let (mut r, mut v) = strinit(0.2)?;
-        let _time: f64 = stradv(0.2, &mut r, &mut v, 0.3, 1.0e-7, 1.0e-3);
+        let _time: f64 = stradv(0.2, &mut r, &mut v, 0.3, 1.0e-7, 1.0e-3)?;
         assert!((r - Vec3::new(0.2660591412807423, 0.13860932478255575, 0.0)).length() < 1.0e-7);
         assert!((v - Vec3::new(-1.4769457229627583, 0.31712381217252994, 0.0)).length() < 1.0e-7);
         Ok(())
