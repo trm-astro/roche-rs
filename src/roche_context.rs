@@ -290,8 +290,7 @@ impl RocheContext {
                 while (pin - pout).abs() > delta {
                     pmid = (pin + pout) / 2.0;
                     if self
-                        .fblink(ffac, acc, &set_earth(cosi, sini, pmid), r)
-                        .unwrap()
+                        .fblink(ffac, acc, &set_earth(cosi, sini, pmid), r)?
                     {
                         pin = pmid;
                     } else {
@@ -306,8 +305,7 @@ impl RocheContext {
                 while (pin - pout).abs() > delta {
                     pmid = (pin + pout) / 2.;
                     if self
-                        .fblink(ffac, acc, &set_earth(cosi, sini, pmid), r)
-                        .unwrap()
+                        .fblink(ffac, acc, &set_earth(cosi, sini, pmid), r)?
                     {
                         pin = pmid;
                     } else {

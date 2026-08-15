@@ -69,7 +69,7 @@ pub fn ingress_egress(
 
             while (pin - pout).abs() > delta {
                 pmid = (pin + pout) / 2.0;
-                if fblink(q, star, spin, ffac, acc, &set_earth(cosi, sini, pmid), r).unwrap() {
+                if fblink(q, star, spin, ffac, acc, &set_earth(cosi, sini, pmid), r)? {
                     pin = pmid;
                 } else {
                     pout = pmid;
@@ -82,7 +82,7 @@ pub fn ingress_egress(
             pout = phi2;
             while (pin - pout).abs() > delta {
                 pmid = (pin + pout) / 2.;
-                if fblink(q, star, spin, ffac, acc, &set_earth(cosi, sini, pmid), r).unwrap() {
+                if fblink(q, star, spin, ffac, acc, &set_earth(cosi, sini, pmid), r)? {
                     pin = pmid;
                 } else {
                     pout = pmid;
