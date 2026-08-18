@@ -1,14 +1,14 @@
 [![PyPi version](https://badgen.net/pypi/v/roche/)](https://pypi.org/project/roche)
-[![crates.io](https://badgen.net/crates/v/rust-roche)](https://crates.io/crates/rust-roche)
+[![crates.io](https://badgen.net/crates/v/roche-rs)](https://crates.io/crates/roche-rs)
 
-rust-roche is a translation of Tom Marsh's C++ [cpp-roche](https://github.com/trmrsh/cpp-roche) package for modelling Roche-distorted binary systems. It also has a few useful functions and types from [cpp-subs](https://github.com/trmrsh/cpp-subs) such as Vec3 and Point.
+roche-rs is a translation of Tom Marsh's C++ [cpp-roche](https://github.com/trmrsh/cpp-roche) package for modelling Roche-distorted binary systems. It also has a few useful functions and types from [cpp-subs](https://github.com/trmrsh/cpp-subs) such as Vec3 and Point.
 
 
 ### Rust
-The latest version of rust-roche can be viewed at [rust-roche](https://crates.io/crates/rust-roche) and can be added to a rust project with
+The latest version of roche-rs can be viewed at [roche-rs](https://crates.io/crates/roche-rs) and can be added to a rust project with
 
 ```
-cargo add rust-roche
+cargo add roche-rs
 ```
 
 ### Python

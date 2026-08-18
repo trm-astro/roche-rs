@@ -1,5 +1,5 @@
 [package]
-name = "rust-roche"
+name = "roche-rs"
 version = "0.5.1"
 edition = "2024"
 description = "Rust translation of Tom Marsh's cpp-roche package for modelling Roche distorted stars/binary systems."
