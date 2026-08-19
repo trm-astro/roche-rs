@@ -44,7 +44,7 @@ pub fn disc_eclipse(
     height: f64,
     r: &Vec3,
 ) -> Result<Etype, RocheError> {
-    if beta <= 1.0 {
+    if beta < 1.0 {
         return Err(RocheError::ParameterError(
             "beta must be >= 1.0".to_string(),
         ));
@@ -73,6 +73,13 @@ pub fn disc_eclipse(
             let rxy: f64 = (r.x * r.x + r.y * r.y).sqrt();
             if rxy <= rdisc2 {
                 temp.push((0.0, 1.0));
+            } else {
+                let subtend: f64 = (rdisc2 / rxy).asin() / TAU;
+                let pcen: f64 = r.y.atan2(-r.x) / TAU;
+                let mut ingress: f64 = pcen - subtend;
+                ingress -= ingress.floor();
+                let egress: f64 = ingress + 2.0 * subtend;
+                temp.push((ingress, egress));
             }
         }
         return Ok(temp);
@@ -104,7 +111,7 @@ pub fn disc_eclipse(
             temp.push((0.0, 1.1));
         } else if result == Circle::Crossing {
             // point partially occulted by disc edge; work out phases
-            let phi0: f64 = r.y.atan2(r.x) / TAU;
+            let phi0: f64 = r.y.atan2(-r.x) / TAU;
             ingress = phi0 + phase;
             ingress -= ingress.floor();
             egress = ingress + 1.0 - 2.0 * phase;
@@ -182,12 +189,22 @@ pub fn disc_eclipse(
         if result == Circle::Inside {
             appear_phase = 0.5;
         } else if result == Circle::Crossing {
-            appear_phase = appear_phase.min(phase);
+            appear_phase = phase;
         }
 
         // Second, the lower inner rim
         if appear_phase > 0.0 {
             result = circle_eclipse(rxy, r.z, -h_in, rdisc1, tani, &mut phase);
+            if result == Circle::Crossing {
+                appear_phase = appear_phase.min(phase);
+            } else if result != Circle::Inside {
+                appear_phase = -1.0;
+            }
+        }
+
+        // Third, the upper inner rim
+        if appear_phase > 0.0 {
+            result = circle_eclipse(rxy, r.z, h_in, rdisc1, tani, &mut phase);
             if result == Circle::Crossing {
                 appear_phase = appear_phase.min(phase);
             } else if result != Circle::Inside {
@@ -241,7 +258,7 @@ pub fn disc_eclipse(
             // First, the upper inner rim
             result = circle_eclipse(rxy, r.z, h_in, rdisc1, tani, &mut phase);
             if result == Circle::Inside {
-                appear_phase = 0.0;
+                appear_phase = 0.5;
             } else if result == Circle::Crossing {
                 appear_phase = phase;
             }
@@ -259,7 +276,7 @@ pub fn disc_eclipse(
     }
 
     // Here is the central phase
-    let phi0: f64 = r.y.atan2(-r.x / TAU);
+    let phi0: f64 = r.y.atan2(-r.x) / TAU;
 
     if appear_phase <= 0.0 {
         ingress = phi0 - eclipse_phase;
@@ -328,4 +345,46 @@ pub fn cut_phase(rxy: f64, rcone: f64, radius: f64) -> f64 {
     }
 
     ((rxy * rxy + rcone * rcone - radius * radius) / (2.0 * rcone * rxy)).acos() / TAU
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Eclipse windows must be centred on the phase at which the disc lies
+    // between the point and the observer: phi0 = atan2(y, -x) in cycles.
+    // These pin a regression where phi0 was accidentally computed in
+    // radians, scattering the windows across arbitrary phases.
+
+    fn centre_of(iangle: f64, r: &Vec3) -> f64 {
+        let eclipses = disc_eclipse(iangle, 0.05, 0.35, 1.5, 0.02, r).unwrap();
+        assert_eq!(eclipses.len(), 1, "expected a single eclipse window");
+        let (ingress, egress) = eclipses[0];
+        assert!(ingress < egress);
+        (ingress + egress) / 2.0 % 1.0
+    }
+
+    #[test]
+    fn window_centred_on_half_for_point_beyond_disc_on_x_axis() {
+        let centre = centre_of(82.0, &Vec3::new(1.0, 0.0, -0.15));
+        assert!((centre - 0.5).abs() < 1e-6, "centre = {centre}");
+    }
+
+    #[test]
+    fn window_centred_on_quarter_for_point_beyond_disc_on_y_axis() {
+        let centre = centre_of(82.0, &Vec3::new(0.0, 1.0, -0.15));
+        assert!((centre - 0.25).abs() < 1e-6, "centre = {centre}");
+    }
+
+    #[test]
+    fn no_eclipse_for_point_above_disc() {
+        let eclipses =
+            disc_eclipse(82.0, 0.05, 0.35, 1.5, 0.02, &Vec3::new(1.0, 0.0, 0.05)).unwrap();
+        assert!(eclipses.is_empty());
+    }
+
+    #[test]
+    fn beta_of_exactly_one_is_allowed() {
+        assert!(disc_eclipse(82.0, 0.05, 0.35, 1.0, 0.02, &Vec3::new(1.0, 0.0, -0.15)).is_ok());
+    }
 }
