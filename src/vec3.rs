@@ -26,6 +26,7 @@ impl Vec3 {
         Self { x, y, z }
     }
 
+    /// 3D vector representation of the centre of mass of the primary star.
     #[staticmethod]
     pub fn cofm1() -> Self {
         Self {
@@ -35,6 +36,7 @@ impl Vec3 {
         }
     }
 
+    /// 3D vector representation of the centre of mass of the secondary star.
     #[staticmethod]
     pub fn cofm2() -> Self {
         Self {
@@ -50,7 +52,7 @@ impl Vec3 {
         self.z = z;
     }
 
-    // Normalises the vector in place
+    /// Normalises the vector in place
     pub fn unit(&mut self) {
         let norm = self.length();
         self.x /= norm;
@@ -58,7 +60,7 @@ impl Vec3 {
         self.z /= norm;
     }
 
-    // Returns a normalised version of the vector
+    /// Returns a normalised version of the vector
     pub fn norm(&self) -> Self {
         let norm = self.length();
         Self {
@@ -77,22 +79,22 @@ impl Vec3 {
         format!("Vec3({}, {}, {})", self.x, self.y, self.z)
     }
 
-    // Returns the length of the vector
+    /// Returns the length of the vector
     pub fn length(&self) -> f64 {
         (self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
     }
 
-    // Returns the squared length of the vector
+    /// Returns the squared length of the vector
     pub fn sqr(&self) -> f64 {
         self.x.powi(2) + self.y.powi(2) + self.z.powi(2)
     }
 
-    // Returns the dot product of two vectors
+    /// Returns the dot product of two vectors
     pub fn dot(&self, other: &Vec3) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    // Returns the cross product of two vectors
+    /// Returns the cross product of two vectors
     pub fn cross(&self, other: &Vec3) -> Vec3 {
         let temp_x = self.y * other.z - self.z * other.y;
         let temp_y = self.z * other.x - self.x * other.z;
