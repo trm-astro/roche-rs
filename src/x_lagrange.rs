@@ -57,8 +57,8 @@ pub fn x_l1(q: f64) -> Result<f64, RocheError> {
 /// iteration. L1 is the point in between the two stars and so will be between
 /// 0 and 1.
 ///
-///  \param q mass ratio = M2/M1
-///  \param spin
+///  * `q`: mass ratio = M2/M1
+///  * `spin`
 ///
 #[pyfunction]
 #[pyo3(name = "xl11")]
@@ -108,8 +108,8 @@ pub fn x_l1_1(q: f64, spin: f64) -> Result<f64, RocheError> {
 /// iteration. L1 is the point in between the two stars and so will be between
 /// 0 and 1.
 ///
-///  \param q mass ratio = M2/M1
-///  \param spin
+///  * `q`: mass ratio = M2/M1
+///  * `spin`
 ///
 #[pyfunction]
 #[pyo3(name = "xl12")]
@@ -159,7 +159,7 @@ pub fn x_l1_2(q: f64, spin: f64) -> Result<f64, RocheError> {
 /// iteration. L2 is the point on the side of the secondary opposite the primary,
 /// ands so x_l2 > 1.
 ///
-///  \param q mass ratio = M2/M1
+///  * `q`: mass ratio = M2/M1
 ///
 #[pyfunction]
 #[pyo3(name = "xl2")]
@@ -208,7 +208,7 @@ pub fn x_l2(q: f64) -> Result<f64, RocheError> {
 /// iteration. L3 is the point on the side of the Primary opposite the secondary,
 /// ands so x_l3 < 0.
 ///
-///  \param q mass ratio = M2/M1
+///  * `q`: mass ratio = M2/M1
 ///
 #[pyfunction]
 #[pyo3(name = "xl3")]
