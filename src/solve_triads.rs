@@ -151,6 +151,7 @@ pub fn findphi(q: f64, iangle: f64, delta: f64) -> Result<f64, RocheError> {
         &r,
         &mut ingress,
         &mut egress,
+        false,
     )?;
     if !status {
         return Ok(-1.0);

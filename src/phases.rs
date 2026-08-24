@@ -219,6 +219,7 @@ pub fn bsphases(q: f64, iangle: f64, rbs: f64) -> Result<(f64, f64), RocheError>
         &r,
         &mut ingress,
         &mut egress,
+        false,
     )?;
     if !eclipse {
         return Err(RocheError::WdphasesError(

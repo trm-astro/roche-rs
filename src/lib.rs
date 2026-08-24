@@ -38,6 +38,9 @@ pub use point::Point;
 pub mod pot_min;
 pub use pot_min::*;
 
+pub mod pot_min_lbfgsb;
+pub use pot_min_lbfgsb::*;
+
 pub mod potential;
 pub use potential::*;
 
@@ -108,6 +111,7 @@ mod roche {
     
     #[pymodule_export]
     use crate::face::face;
+
     #[pymodule_export]
     use crate::fblink::fblink;
     
@@ -208,4 +212,8 @@ mod roche {
         zeta_rlobe_eggleton,
         dzetadq_rlobe_eggleton
     };
+
+    #[allow(non_upper_case_globals)]
+    #[pymodule_export]
+    const __version__: &str = env!("CARGO_PKG_VERSION");
 }

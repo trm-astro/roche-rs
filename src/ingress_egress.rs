@@ -1,5 +1,5 @@
 use crate::errors::RocheError;
-use crate::{Star, Vec3};
+use crate::{Star, Vec3, pot_min_lbfgsb};
 use crate::{fblink, pot_min, ref_sphere, set_earth, sphere_eclipse};
 use pyo3::prelude::*;
 use std::f64::consts::TAU;
@@ -35,6 +35,7 @@ pub fn ingress_egress(
     r: &Vec3,
     ingress: &mut f64,
     egress: &mut f64,
+    lbfgsb: bool,
 ) -> Result<bool, RocheError> {
     let rref: f64;
     let pref: f64;
@@ -59,6 +60,10 @@ pub fn ingress_egress(
     ) {
         let acc: f64 = 2. * (2.0 * TAU * (lam2 - lam1) * delta).sqrt();
 
+        let pot_min = match lbfgsb {
+            true => pot_min_lbfgsb,
+            false => pot_min,
+        };
         if pot_min(
             q, star, spin, cosi, sini, r, phi1, phi2, lam1, lam2, rref, pref, acc, &mut phi,
             &mut lam,
@@ -128,6 +133,7 @@ pub fn ingress_egress_wrapper(
     iangle: f64,
     delta: f64,
     r: &Vec3,
+    lbfgsb: bool,
 ) -> Result<(bool, f64, f64), RocheError> {
     let mut ingress: f64 = 0.0;
     let mut egress: f64 = 0.0;
@@ -141,6 +147,7 @@ pub fn ingress_egress_wrapper(
         r,
         &mut ingress,
         &mut egress,
+        lbfgsb,
     )?;
     Ok((eclipsed, ingress, egress))
 }
