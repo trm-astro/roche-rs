@@ -22,4 +22,5 @@ docs = [
     "myst-nb",
     "myst-parser",
     "pydata-sphinx-theme",
+    "numpydoc",
 ]
