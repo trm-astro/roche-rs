@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::PyType;
 
 pub mod blink;
 pub use blink::blink;
@@ -84,11 +85,29 @@ pub mod zeta_rlobe_eggleton;
 pub use zeta_rlobe_eggleton::*;
 
 
-#[pyclass(from_py_object, eq, eq_int)]
+#[pyclass(from_py_object, eq, eq_int, module = "roche")]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Star {
     Primary = 1,
     Secondary = 2,
+}
+
+// Pickle support for star. Reconstrucs using getattr
+// This is necessary because the enum is not a class and cannot be reconstructed directly
+#[pymethods]
+impl Star {
+    // pickle support: reconstruct via getattr(Star, name)
+    fn __reduce__<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<(Bound<'py, PyAny>, (Bound<'py, PyType>, &'static str))> {
+        let name = match self {
+            Star::Primary => "Primary",
+            Star::Secondary => "Secondary",
+        };
+        let getattr = py.import("builtins")?.getattr("getattr")?;
+        Ok((getattr, (py.get_type::<Star>(), name)))
+    }
 }
 
 pub type Etype = Vec<(f64, f64)>;
