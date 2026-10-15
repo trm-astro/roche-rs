@@ -8,7 +8,7 @@ enum Vec3OrF64 {
     F64(f64),
 }
 
-#[pyclass(from_py_object)]
+#[pyclass(from_py_object, module = "roche")]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Vec3 {
     #[pyo3(get, set)]
@@ -24,6 +24,11 @@ impl Vec3 {
     #[new]
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
+    }
+
+    // pickle support
+    fn __getnewargs__(&self) -> (f64, f64, f64) {
+        (self.x, self.y, self.z)
     }
 
     /// 3D vector representation of the centre of mass of the primary star.
