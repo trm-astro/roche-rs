@@ -143,6 +143,7 @@ pub fn pot_min_lbfgsb(
         // Status::LineSearchFailure if (sol.f - f_old).abs() < delphi => Ok(false),
         Status::LineSearchFailure => Err(RocheError::PotminError("Failed with LineSearchFailure".to_string())),
         // _ => Err(RocheError::PotminError("potmin failed".to_string()))
+        Status::InvalidInput => Err(RocheError::PotminError("Failed with InvalidInput".to_string())),
     }
     
 }
