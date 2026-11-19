@@ -9,7 +9,7 @@ use crate::Vec3;
 /// a relative gravity, a vector of phase pairs defining when the point is eclipsed by
 /// another model component, and a flux.
 ///
-#[pyclass(skip_from_py_object)]
+#[pyclass(skip_from_py_object, module = "roche")]
 #[derive(Clone, Debug)]
 pub struct Point {
     #[pyo3(get)]
@@ -49,6 +49,25 @@ impl Point {
             flux: 0.0,
         }
     }
+    // pickle support: constructor args, then flux restored via state
+    fn __getnewargs__(&self) -> (Vec3, Vec3, f64, f64, Etype) {
+        (
+            self.position,
+            self.direction,
+            self.area as f64,
+            self.gravity as f64,
+            self.eclipse.clone(),
+        )
+    }
+
+    fn __getstate__(&self) -> f32 {
+        self.flux
+    }
+
+    fn __setstate__(&mut self, flux: f32) {
+        self.flux = flux;
+    }
+
     ///
     /// sets the point's flux.
     ///
