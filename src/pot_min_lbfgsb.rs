@@ -1,8 +1,18 @@
 use crate::errors::RocheError;
 use crate::{Star, Vec3};
-use crate::{set_earth, rpot_val_grad, rpot_val};
+use crate::{set_earth, rpot_val_grad, rpot_val, rpot_grad};
 use lbfgsb_rs_pure::{IterationInfo, LBFGSB, Status};
 use std::f64::consts::TAU;
+use basin::{
+    BoxBounds,
+    ConstraintDescription,
+    ConstraintSet,
+    Constraints,
+    CostFunction,
+    Executor,
+    Gradient,
+    Lbfgsb,
+};
 
 
 
@@ -137,7 +147,7 @@ pub fn pot_min_lbfgsb(
     //     return Ok(false);
     // }
     match sol.status {
-        Status::Converged => Ok(true),
+        Status::Converged => Ok(sol.f <= pref),
         Status::MaxIter => Ok(false),
         Status::NumericalFailure => Err(RocheError::PotminError("Failed with NumericalFailure".to_string())),
         // Status::LineSearchFailure if (sol.f - f_old).abs() < delphi => Ok(false),
@@ -149,108 +159,138 @@ pub fn pot_min_lbfgsb(
 }
 
 
-// struct RochePotential{
-//     lower: Vec<f64>,
-//     upper: Vec<f64>,
-//     q: f64,
-//     cosi: f64,
-//     sini: f64,
-//     star: Star,
-//     spin: f64,
-//     p: Vec3,
-// }
 
-// impl CostFunction for RochePotential {
-//     type Param = Vec<f64>;
-//     type Output = f64;
-//     type Error = RocheError;
-//     fn cost(&self, x: &Vec<f64>) -> Result<f64, Self::Error> {
-//         println!(
-//             "COST x = [{:.17e}, {:.17e}]",
-//             x[0], x[1]
-//         );
+pub fn pot_min_basin(
+    q: f64,
+    star: Star,
+    spin: f64,
+    cosi: f64,
+    sini: f64,
+    p: &Vec3,
+    phi1: f64,
+    phi2: f64,
+    lam1: f64,
+    lam2: f64,
+    _rref: f64,
+    pref: f64,
+    _acc: f64,
+    phi: &mut f64,
+    lam: &mut f64,
+) -> Result<bool, RocheError> {
+    *phi = (phi1 + phi2) / 2.;
+    *lam = (lam1 + lam2) / 2.;
+
+    let rp: f64 = TAU * *phi;
+    let (sinp, cosp) = rp.sin_cos();
+    let earth: Vec3 = Vec3::new(sini * cosp, -sini * sinp, cosi);
+    let pot = rpot_val(q, star, spin, &earth, p, *lam)?;
+    
+    if pot <= pref {
+        return Ok(true);
+    };
+
+    //     // let constraints = BoxConstraints::new(lower, upper);
+    //     // let p = p.clone();
+    let problem = RochePotential {
+        q,
+        star,
+        spin,
+        cosi,
+        sini,
+        p: p.clone(),
+        lower: vec![phi1, lam1],
+        upper: vec![phi2, lam2],
+    };
+    
+    let x0 = vec![*phi, *lam];
+    
+    let solver = Lbfgsb::<Vec<f64>>::new()
+        .with_m_capacity(10)
+        .with_absolute_projected_gradient_tolerance(1.0e-10)
+        .with_relative_cost_reduction_tolerance(None);
+
+    let result = Executor::from_start(problem, solver, x0)
+        .max_iter(200)
+        .target_objective(pref)
+        .run()
+        .map_err(|err| {
+            match err {
+                basin::ConstraintSolveError::Evaluation(e) => e,
+                basin::ConstraintSolveError::InvalidConstraints(e) => {
+                    RocheError::PotminError(
+                        format!("Invalid constraints: {:?}", e)
+                    )
+                }
+                _ => RocheError::PotminError(
+                        format!("Basin solver error: {:?}", err)
+                    ),
+            }
+        })?;
+        
+    let best_cost = result.best_cost();
+    let best_param = result.best_param();
+
+    *phi = best_param[0];
+    *lam = best_param[1];
+    println!("best pot = {}", best_cost);
+    if best_cost <= pref {
+        return Ok(true);
+    }
+
+    match &result.report.termination {
+        basin::Termination::Failed(reason) => {
+            Err(RocheError::PotminError(
+                format!("Basin minimisation failed: {:?}", reason)
+            ))
+        }
+
+        _ => Ok(false),
+    }
+}
 
 
-//         let earth = set_earth(self.cosi, self.sini, x[0]);
-//         let val = rpot_val(self.q, self.star, self.spin, &earth, &self.p, x[1])?;
-//         Ok(val)
-//     }
-// }
+struct RochePotential{
+        q: f64,
+        star: Star,
+        spin: f64,
+        cosi: f64,
+        sini: f64,
+        p: Vec3,
+        lower: Vec<f64>,
+        upper: Vec<f64>,
+}
 
-// impl Gradient for RochePotential {
-//     type Gradient = Vec<f64>;
-//     fn gradient(&self, x: &Vec<f64>) -> Result<Vec<f64>, Self::Error> {
-//         let earth = set_earth(self.cosi, self.sini, x[0]);
-//         let (dphi, dlam) = rpot_grad(self.q, self.star, self.spin, &earth, &self.p, x[1])?;
-//         Ok(vec![dphi, dlam])
-//     }
-// }
+impl CostFunction for RochePotential {
+    type Param = Vec<f64>;
+    type Output = f64;
+    type Error = RocheError;
+    fn cost(&self, x: &Vec<f64>) -> Result<f64, Self::Error> {
+        let earth = set_earth(self.cosi, self.sini, x[0]);
+        let val = rpot_val(self.q, self.star, self.spin, &earth, &self.p, x[1])?;
+        Ok(val)
+    }
+}
 
-// impl BoxConstraints for RochePotential {
-//     fn lower(&self) -> &Vec<f64> {
-//         println!("LOWER = {:?}", self.lower);
-//         &self.lower
-//     }
+impl Gradient for RochePotential {
+    type Gradient = Vec<f64>;
 
-//     fn upper(&self) -> &Vec<f64> {
-//         println!("UPPER = {:?}", self.upper);
-//         &self.upper
-//     }
-// }
+    fn gradient(&self, x: &Vec<f64>) -> Result<Vec<f64>, Self::Error> {
+        let earth = set_earth(self.cosi, self.sini, x[0]);
+        let (dphi, dlam) = rpot_grad(self.q, self.star, self.spin, &earth, &self.p, x[1])?;
+        Ok(vec![dphi, dlam])
+    }
+}
 
-// pub fn pot_min_basin(
-//     q: f64,
-//     star: Star,
-//     spin: f64,
-//     cosi: f64,
-//     sini: f64,
-//     p: &Vec3,
-//     phi1: f64,
-//     phi2: f64,
-//     lam1: f64,
-//     lam2: f64,
-//     _rref: f64,
-//     pref: f64,
-//     _acc: f64,
-//     phi: &mut f64,
-//     lam: &mut f64,
-// ) -> Result<bool, RocheError> {
-//     *phi = (phi1 + phi2) / 2.;
-//     *lam = (lam1 + lam2) / 2.;
-//     // let x0 = vec![phi, lam];
-//     // let constraints = BoxConstraints::new(lower, upper);
-//     // let solver = Lbfgsb::new(constraints);
-//     // let p = p.clone();
-//     let problem = RochePotential {
-//             lower: vec![phi1, lam1],
-//             upper: vec![phi2, lam2],
-//             q,
-//             cosi,
-//             sini,
-//             star,
-//             spin,
-//             p: p.clone()
-//         };
+impl Constraints for RochePotential {
+    type Set = ConstraintSet<BoxBounds<Vec<f64>>>;
 
-//     // println!("x0    = {:?}", vec![*phi, *lam]);
-//     // println!("lower = {:?}", lower);
-//     // println!("upper = {:?}", upper);
-//     let result = Executor::new(
-//         problem,
-//         Lbfgsb::new(),
-//         LbfgsState::new(vec![*phi, *lam], 10),
-//     )
-//         .max_iter(200)
-//         .terminate_on(ProjectedGradientTolerance::new(vec![phi1, lam1], vec![phi2, lam2], 1.0e-5))
-//         .run()
-//         .unwrap();
-
-//     println!("f = {:.17e}, (phi, lam) = ({:.17e}, {:.17e}), reason = {:?}", result.cost(), result.param()[0], result.param()[1], result.reason);
-//     if result.cost() <= pref {
-//         println!("f = {:.17e}, (phi, lam) = ({:.17e}, {:.17e})", result.cost(), result.param()[0], result.best_param()[1]);
-//         Ok(true)
-//     } else {
-//         Ok(false)
-//     }
-
+    fn constraints(&self)
+    -> <Self::Set as ConstraintDescription>::Borrowed<'_>
+    {
+        ConstraintSet::new().with_bounds(BoxBounds::new(
+            Some(&self.lower),
+            Some(&self.upper),
+        ))
+    }
+}
 // }

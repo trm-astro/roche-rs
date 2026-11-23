@@ -1,5 +1,5 @@
 use crate::errors::RocheError;
-use crate::{Star, Vec3, pot_min_lbfgsb};
+use crate::{Star, Vec3, pot_min_basin, pot_min_lbfgsb};
 use crate::{fblink, pot_min, ref_sphere, set_earth, sphere_eclipse};
 use pyo3::prelude::*;
 use std::f64::consts::TAU;
@@ -61,7 +61,7 @@ pub fn ingress_egress(
         let acc: f64 = 2. * (2.0 * TAU * (lam2 - lam1) * delta).sqrt();
 
         let pot_min = match lbfgsb {
-            true => pot_min_lbfgsb,
+            true => pot_min_basin,
             false => pot_min,
         };
         if pot_min(
@@ -71,6 +71,7 @@ pub fn ingress_egress(
             let mut pin: f64 = phi;
             let mut pout: f64 = phi1;
             let mut pmid: f64;
+            // println!("phi1 = {}, phi2 = {}, phi = {}, lam1 = {}, lam2 = {}, lam = {}", phi1, phi2, phi, lam1, lam2, lam);
 
             while (pin - pout).abs() > delta {
                 pmid = (pin + pout) / 2.0;
