@@ -51,7 +51,6 @@ pub fn star_eclipse(
             posn,
             &mut ingress,
             &mut egress,
-            false,
         )?)
         || (!roche
             && sphere_eclipse(
