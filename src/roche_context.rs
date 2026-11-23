@@ -1,6 +1,6 @@
 use crate::errors::RocheError;
 use crate::{Etype, Star, Vec3};
-use crate::{dbrent, pot_min, x_l1, x_l1_1, x_l1_2, x_l2, x_l3};
+use crate::{dbrent, pot_min_lbfgsb, x_l1, x_l1_1, x_l1_2, x_l2, x_l3};
 use crate::{drpot1, drpot2, rpot_grad, rpot_val, rpot1, rpot2};
 use crate::{set_earth, sphere_eclipse, sphere_eclipse_vector};
 use std::f64::consts::TAU;
@@ -382,7 +382,7 @@ impl RocheContext {
         phi: &mut f64,
         lam: &mut f64,
     ) -> Result<bool, RocheError> {
-        pot_min(
+        pot_min_lbfgsb(
             self.q, self.star, self.spin, cosi, sini, p, phi1, phi2, lam1, lam2, rref, pref, acc,
             phi, lam,
         )

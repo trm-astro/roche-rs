@@ -39,6 +39,9 @@ pub use point::Point;
 pub mod pot_min;
 pub use pot_min::*;
 
+pub mod pot_min_lbfgsb;
+pub use pot_min_lbfgsb::*;
+
 pub mod potential;
 pub use potential::*;
 
