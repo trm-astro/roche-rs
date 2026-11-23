@@ -13,7 +13,9 @@ use basin::{
     Gradient,
     Lbfgsb,
 };
-
+use basin::solver::lbfgs::model_strategy::ModelDirection;
+use basin::{line_search::projected_armijo::ProjectedArmijo};
+use basin::solver::lbfgs::model_strategy::ProjectedSearch;
 
 
 
@@ -177,8 +179,10 @@ pub fn pot_min_basin(
     phi: &mut f64,
     lam: &mut f64,
 ) -> Result<bool, RocheError> {
-    *phi = (phi1 + phi2) / 2.;
-    *lam = (lam1 + lam2) / 2.;
+    let phi_mid = 0.5 * (phi1 + phi2);
+    let lam_mid = 0.5 * (lam1 + lam2);
+    *phi = phi_mid;
+    *lam = lam_mid;
 
     let rp: f64 = TAU * *phi;
     let (sinp, cosp) = rp.sin_cos();
@@ -189,8 +193,16 @@ pub fn pot_min_basin(
         return Ok(true);
     };
 
-    //     // let constraints = BoxConstraints::new(lower, upper);
-    //     // let p = p.clone();
+    // Choose a target box half-width in solver space (e.g., 10.0 so the initial
+    // unit step of 1.0 moves 10% of the distance from center to boundary).
+    let box_half_width = 10.0;
+    let phi_scale = (0.5 * (phi2 - phi1)) / box_half_width;
+    let lam_scale = (0.5 * (lam2 - lam1)) / box_half_width;
+
+    // Guard against degenerate zero-width intervals
+    let phi_scale = if phi_scale > 0.0 { phi_scale } else { 1.0 };
+    let lam_scale = if lam_scale > 0.0 { lam_scale } else { 1.0 };
+
     let problem = RochePotential {
         q,
         star,
@@ -198,15 +210,17 @@ pub fn pot_min_basin(
         cosi,
         sini,
         p: p.clone(),
-        lower: vec![phi1, lam1],
-        upper: vec![phi2, lam2],
+        center: [phi_mid, lam_mid],
+        scale: [phi_scale, lam_scale],
+        lower: vec![-box_half_width, -box_half_width],
+        upper: vec![box_half_width, box_half_width],
     };
     
-    let x0 = vec![*phi, *lam];
+    let x0 = vec![0.0, 0.0]; // Start at the center of the box in solver space
     
     let solver = Lbfgsb::<Vec<f64>>::new()
         .with_m_capacity(10)
-        .with_absolute_projected_gradient_tolerance(1.0e-10)
+        .with_absolute_projected_gradient_tolerance(1e-10)
         .with_relative_cost_reduction_tolerance(None);
 
     let result = Executor::from_start(problem, solver, x0)
@@ -230,8 +244,10 @@ pub fn pot_min_basin(
     let best_cost = result.best_cost();
     let best_param = result.best_param();
 
-    *phi = best_param[0];
-    *lam = best_param[1];
+    // Unscale back to physical (phi, lam) coordinates
+    *phi = phi_mid + phi_scale * best_param[0];
+    *lam = lam_mid + lam_scale * best_param[1];
+
     println!("best pot = {}", best_cost);
     if best_cost <= pref {
         return Ok(true);
@@ -256,8 +272,20 @@ struct RochePotential{
         cosi: f64,
         sini: f64,
         p: Vec3,
+        center: [f64; 2],
+        scale: [f64; 2],
         lower: Vec<f64>,
         upper: Vec<f64>,
+}
+
+impl RochePotential {
+    #[inline]
+    fn to_physical(&self, u: &[f64]) -> (f64, f64) {
+        (
+            self.center[0] + self.scale[0] * u[0],
+            self.center[1] + self.scale[1] * u[1],
+        )
+    }
 }
 
 impl CostFunction for RochePotential {
@@ -265,8 +293,9 @@ impl CostFunction for RochePotential {
     type Output = f64;
     type Error = RocheError;
     fn cost(&self, x: &Vec<f64>) -> Result<f64, Self::Error> {
-        let earth = set_earth(self.cosi, self.sini, x[0]);
-        let val = rpot_val(self.q, self.star, self.spin, &earth, &self.p, x[1])?;
+        let (phi, lam) = self.to_physical(x);
+        let earth = set_earth(self.cosi, self.sini, phi);
+        let val = rpot_val(self.q, self.star, self.spin, &earth, &self.p, lam)?;
         Ok(val)
     }
 }
@@ -275,9 +304,17 @@ impl Gradient for RochePotential {
     type Gradient = Vec<f64>;
 
     fn gradient(&self, x: &Vec<f64>) -> Result<Vec<f64>, Self::Error> {
-        let earth = set_earth(self.cosi, self.sini, x[0]);
-        let (dphi, dlam) = rpot_grad(self.q, self.star, self.spin, &earth, &self.p, x[1])?;
+        let (phi, lam) = self.to_physical(x);
+        let earth = set_earth(self.cosi, self.sini, phi);
+        let (dphi, dlam) = rpot_grad(self.q, self.star, self.spin, &earth, &self.p, lam)?;
         Ok(vec![dphi, dlam])
+    }
+
+    fn cost_and_gradient(&self, x: &Vec<f64>) -> Result<(f64, Vec<f64>), Self::Error> {
+        let (phi, lam) = self.to_physical(x);
+        let earth = set_earth(self.cosi, self.sini, phi);
+        let (val, dphi, dlam) = rpot_val_grad(self.q, self.star, self.spin, &earth, &self.p, lam)?;
+        Ok((val, vec![dphi, dlam]))
     }
 }
 
